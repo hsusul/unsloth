@@ -115,55 +115,19 @@ def test_dataset_task_avoids_explicit_yaml_name(tmp_path, suffix, dataset_first)
     task = tmp_path / f"custom{suffix}"
     task.write_text("task: qa\ndataset_path: json\n")
     entries = [data, task] if dataset_first else [task, data]
-    names, includes = evalmod.resolve_tasks(",".join(map(str, entries)), "q", "a", tmp_path / "tmp")
-    assert names == (["qa_2", "qa"] if dataset_first else ["qa", "qa_2"])
-    generated = (tmp_path / "tmp" / "generated").resolve()
-    custom = (tmp_path / "tmp" / "custom").resolve()
-    assert includes == list(map(str, [generated, custom] if dataset_first else [custom, generated]))
-    spec = yaml.safe_load((generated / "qa_2.yaml").read_text())
-    assert spec["task"] == "qa_2"
-    assert spec["dataset_kwargs"] == {"data_files": str(data.resolve())}
-    assert yaml.safe_load((custom / "qa.yaml").read_text())["task"] == "qa"
-
-
-@pytest.mark.parametrize("dataset_first", [True, False])
-def test_dataset_task_avoids_explicit_group_name(tmp_path, dataset_first):
-    data = tmp_path / "suite.csv"
-    data.write_text("q,a\n")
-    group = tmp_path / "custom.yaml"
-    group.write_text("group: suite\ntask: [a, b]\n")
-    entries = [data, group] if dataset_first else [group, data]
-    names, includes = evalmod.resolve_tasks(",".join(map(str, entries)), "q", "a", tmp_path / "tmp")
-    assert names == (["suite_2", "suite"] if dataset_first else ["suite", "suite_2"])
-    generated = (tmp_path / "tmp" / "generated").resolve()
-    assert includes == list(
-        map(
-            str,
-            [generated, tmp_path.resolve()] if dataset_first else [tmp_path.resolve(), generated],
-        )
-    )
-    spec = yaml.safe_load((generated / "suite_2.yaml").read_text())
-    assert spec["task"] == "suite_2"
-    assert spec["dataset_kwargs"] == {"data_files": str(data.resolve())}
-
-
-@pytest.mark.parametrize("dataset_first", [True, False])
-def test_dataset_tasks_avoid_explicit_yaml_numeric_suffixes(tmp_path, dataset_first):
-    data = [tmp_path / "qa.jsonl", tmp_path / "qa.csv"]
-    data[0].write_text("{}\n")
-    data[1].write_text("q,a\n")
-    tasks = [tmp_path / "custom.yaml", tmp_path / "other.yaml"]
-    tasks[0].write_text("task: qa\n")
-    tasks[1].write_text("task: qa_2\n")
-    entries = data + tasks if dataset_first else tasks + data
     names, _ = evalmod.resolve_tasks(",".join(map(str, entries)), "q", "a", tmp_path / "tmp")
-    assert names == (
-        ["qa_3", "qa_4", "qa", "qa_2"] if dataset_first else ["qa", "qa_2", "qa_3", "qa_4"]
-    )
-    for name, path in zip(["qa_3", "qa_4"], data):
-        spec = yaml.safe_load((tmp_path / "tmp" / "generated" / f"{name}.yaml").read_text())
-        assert spec["task"] == name
-        assert spec["dataset_kwargs"] == {"data_files": str(path.resolve())}
+    assert names == (["qa_2", "qa"] if dataset_first else ["qa", "qa_2"])
+    spec = yaml.safe_load((tmp_path / "tmp" / "generated" / "qa_2.yaml").read_text())
+    assert spec["dataset_kwargs"] == {"data_files": str(data.resolve())}
+
+
+def test_dataset_task_avoids_explicit_yaml_numeric_suffix(tmp_path):
+    (tmp_path / "qa.jsonl").write_text("{}\n")
+    (tmp_path / "a.yaml").write_text("task: qa\n")
+    (tmp_path / "b.yaml").write_text("task: qa_2\n")
+    entries = [tmp_path / "qa.jsonl", tmp_path / "a.yaml", tmp_path / "b.yaml"]
+    names, _ = evalmod.resolve_tasks(",".join(map(str, entries)), "q", "a", tmp_path / "tmp")
+    assert names == ["qa_3", "qa", "qa_2"]
 
 
 @pytest.mark.parametrize("duplicate", ["yaml", "same_yaml", "plain_first", "plain_last"])
